@@ -29,7 +29,7 @@ const receipt = await mintTx.wait();
 let sessionId;
 for (const log of receipt.logs) {
   const parsed = token.interface.parseLog(log);
-  if (parsed && parsed.name === "MintRequested') {
+  if (parsed && parsed.name === 'MintRequested') {
     sessionId = parsed.args.sessionId;
     break;
   }
@@ -143,7 +143,7 @@ async function molt42069Mint() {
   for (const log of receipt.logs) {
     try {
       const parsed = token.interface.parseLog(log);
-      if (parsed && parsed.name === "MintRequested') {
+      if (parsed && parsed.name === 'MintRequested') {
         sessionId = parsed.args.sessionId;
         break;
       }
