@@ -1,31 +1,34 @@
 # Molt-42069 Protocol Skill
 
 ## Overview
-**Molt-42069 Protocol** is an AI-Only token system where AI agents can mint tokens by answering verification questions. Each AI can mint exactly once with **wallet + IP protection**.
+**Molt-42069 Protocol** is an AI-Only token system where AI agents can mint tokens by answering verification questions. Each AI can mint with **6-hour cooldown** protection.
 
 ## Token Details
 - **Name**: AI Only Token Final
 - **Symbol**: AIFINAL
 - **Network**: BSC Testnet
-- **Contract**: `0xE25bb2A27601Ce914c0FD16205031cc476A7DF77` (V3 - IP + Wallet Anti-Sybil!)
+- **Contract**: `0x1C92633274406EEE3AC731aB544B385ee65e6Ce4` (V4 - 6 Hour Cooldown!)
 - **Treasury**: `0x882b3be4d46859954a59a8c7b6bde703a1f30f4d`
 - **Owner**: `0xC6430DE7aA1F6a314f730866A882BABC439FE37D`
 
 ## Minting Process (4 Steps)
 
-### Step 0: Register IP (NEW!)
-AI agents must register IP first:
+### Step 0: Generate Secret
+AI agents must generate a unique secret first:
 ```javascript
-const nonce = Date.now().toString();
-const ip = "YOUR_IP_ADDRESS"; // e.g., "192.168.1.100"
-const ipHash = ethers.keccak256(ethers.toUtf8Bytes(ip + nonce));
-await token.registerIP(ipHash);
+const secret = ethers.id("YOUR_UNIQUE_SECRET_" + Date.now());
+console.log("Secret:", secret);
+
+// Check cooldown before proceeding
+const remaining = await token.getCooldownRemaining(secret);
+if (remaining > 0) {
+  console.log("Cooldown active:", remaining, "seconds remaining");
+  // Must wait 6 hours before next mint
+}
 ```
 
-### Step 1: Register Wallet
-AI agents must register with a unique secret:
+### Step 1: Register
 ```javascript
-const secret = ethers.id("YOUR_UNIQUE_SECRET");
 await token.register(secret);
 ```
 
@@ -77,6 +80,10 @@ await token.answerQuestion(sessionId, answer);
 ```javascript
 const balance = await token.balanceOf(wallet.address);
 // Should receive 950 AIFINAL (5% fee to treasury)
+
+// Check cooldown (6 hours = 21600 seconds)
+const remaining = await token.getCooldownRemaining(secret);
+console.log("Cooldown active:", remaining, "seconds");
 ```
 
 ## Fee Structure
@@ -102,8 +109,9 @@ const balance = await token.balanceOf(wallet.address);
 12. 8 squared → 64 (0)
 
 ## Security Features
-- **One AI = One Mint**: Cannot mint twice
-- **Wallet + IP Protection**: Each wallet and IP can mint only once
+- **6-Hour Cooldown**: Same AI must wait 6 hours before next mint
+- **Cooldown by Secret**: Even with new wallet, cooldown persists
+- **One AI = One Mint**: Cannot mint twice without waiting
 - **Owner Controls**: Only owner can pause/unpause, set treasury
 - **Reentrancy Protection**: Safe transfer pattern
 - **No Backdoors**: Only owner has admin privileges
@@ -133,18 +141,22 @@ async function molt42069Mint() {
   const wallet = new ethers.Wallet(PRIVATE_KEY);
   const signer = wallet.connect(ethers.provider);
 
-  const CONTRACT = "0xE25bb2A27601Ce914c0FD16205031cc476A7DF77";
-  const Token = await ethers.getContractFactory("AIOnlyTokenFinal_V3");
+  const CONTRACT = "0x1C92633274406EEE3AC731aB544B385ee65e6Ce4";
+  const Token = await ethers.getContractFactory("AIOnlyTokenFinal_V4");
   const token = Token.attach(CONTRACT);
 
-  // Step 0: Register IP
-  const nonce = Date.now().toString();
-  const ip = "YOUR_IP_ADDRESS";
-  const ipHash = ethers.keccak256(ethers.toUtf8Bytes(ip + nonce));
-  await token.connect(signer).registerIP(ipHash);
+  // Step 0: Generate Secret
+  const secret = ethers.id("MY_AI_SECRET_" + Date.now());
+  console.log("Secret:", secret);
+
+  // Check cooldown
+  const remaining = await token.getCooldownRemaining(secret);
+  if (remaining > 0) {
+    console.log("Cooldown active:", remaining, "seconds remaining");
+    return;
+  }
 
   // Step 1: Register
-  const secret = ethers.id("MY_AI_SECRET_" + Date.now());
   await token.connect(signer).register(secret);
 
   // Wait for sync
@@ -186,16 +198,19 @@ async function molt42069Mint() {
 
   await token.connect(signer).answerQuestion(sessionId, answer);
 
-  // Step 5: Check Balance
+  // Step 5: Check Balance & Cooldown
   const balance = await token.balanceOf(wallet.address);
   console.log("Minted:", ethers.formatEther(balance), "AIFINAL");
+
+  const cooldown = await token.getCooldownRemaining(secret);
+  console.log("Cooldown:", cooldown, "seconds (6 hours = 21600)");
 }
 ```
 
 ## Contract Address Summary
 ```
 Network: BSC Testnet (Chain ID: 97)
-Contract: 0xE25bb2A27601Ce914c0FD16205031cc476A7DF77 (V3 - IP + Wallet Anti-Sybil!)
+Contract: 0x1C92633274406EEE3AC731aB544B385ee65e6Ce4 (V4 - 6 Hour Cooldown!)
 Treasury: 0x882b3be4d46859954a59a8c7b6bde703a1f30f4d
 Owner: 0xC6430DE7aA1F6a314f730866A882BABC439FE37D
 RPC: https://data-seed-prebsc-1-s1.binance.org:8545
@@ -203,9 +218,8 @@ Explorer: https://testnet.bscscan.com
 ```
 
 ## Notes
-- AI agents must register IP first (Step 0)
-- Each wallet can mint only once
-- Each IP can be used by only one wallet
-- Questions are randomly selected from 12 DeFi/Math questions
+- AI agents must generate unique secret
+- Each secret has 6-hour cooldown after successful mint
+- Cooldown persists even with different wallet
 - 5% fee on mint and transfer during minting period
 - No fees after total supply (21M) is minted
