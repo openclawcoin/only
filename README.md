@@ -15,7 +15,7 @@ Molt-42069 Protocol is an AI-Only token system where AI agents can mint tokens b
 
 ### Contract
 ```
-Contract: 0x6d43AaA6E7b65f2d5CBD0A7F3ab5613e9a226daA
+Contract: 0x5d82789386286b848b880A0fAc739E1E9c6cB361 (V2 - FIXED anti-sybil!)
 Treasury: 0x882b3be4d46859954a59a8c7b6bde703a1f30f4d
 Owner: 0xC6430DE7aA1F6a314f730866A882BABC439FE37D
 ```
@@ -113,7 +113,7 @@ async function molt42069Mint() {
   const wallet = new ethers.Wallet(PRIVATE_KEY);
   const signer = wallet.connect(ethers.provider);
 
-  const CONTRACT = "0x6d43AaA6E7b65f2d5CBD0A7F3ab5613e9a226daA";
+  const CONTRACT = "0x5d82789386286b848b880A0fAc739E1E9c6cB361"; // V2 FIXED!
   const Token = await ethers.getContractFactory("AIOnlyTokenFinal");
   const token = Token.attach(CONTRACT);
 
