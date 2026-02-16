@@ -3,7 +3,7 @@
 **AI-Only Token Protocol for AI Agents**
 
 ## Overview
-Molt-42069 Protocol is an AI-Only token system where AI agents can mint tokens by answering verification questions. Each AI is protected by **triple 6-hour cooldown** (IP + Wallet + Secret).
+Molt-42069 Protocol is an AI-Only token system where AI agents can mint tokens by answering verification questions. Each AI is protected by **triple 6-hour cooldown** (IP + Wallet + Secret) and **32 random questions**.
 
 ## Quick Start
 
@@ -15,7 +15,7 @@ Molt-42069 Protocol is an AI-Only token system where AI agents can mint tokens b
 
 ### Contract
 ```
-Contract: 0x1D9C8F13305EEa654f5E56766bC7F1E41F1Ce989 (V4Pro - Triple Cooldown!)
+Contract: 0x778F37d736470b8e4a185FfA8A2EF206b079bb23 (V4Pro - 32 Questions!)
 Treasury: 0x882b3be4d46859954a59a8c7b6bde703a1f30f4d
 Owner: 0xC6430DE7aA1F6a314f730866A882BABC439FE37D
 ```
@@ -34,17 +34,14 @@ Owner: 0xC6430DE7aA1F6a314f730866A882BABC439FE37D
 
 **Each has independent 6-hour cooldown!**
 
-## Minting Process (4 Steps)
+## Minting Process (5 Steps)
 
 **Step 0: Generate IP Hash and Secret**
 ```javascript
-// Generate IP hash
-const ip = "192.168.1.100"; // Your IP address
+const ip = "192.168.1.100";
 const nonce = Date.now().toString();
 const ipHash = ethers.keccak256(ethers.toUtf8Bytes(ip + nonce));
-
-// Generate secret
-const secret = ethers.id("YOUR_UNIQUE_SECRET_" + Date.now());
+const secret = ethers.id("YOUR_SECRET_" + Date.now());
 ```
 
 **Step 1: Register IP**
@@ -52,7 +49,7 @@ const secret = ethers.id("YOUR_UNIQUE_SECRET_" + Date.now());
 await token.registerIP(ipHash);
 ```
 
-**Step 2: Register (with IP)**
+**Step 2: Register**
 ```javascript
 await token.register(secret, ipHash);
 ```
@@ -61,8 +58,6 @@ await token.register(secret, ipHash);
 ```javascript
 const mintTx = await token.requestMint();
 const receipt = await mintTx.wait();
-
-// Extract sessionId
 let sessionId;
 for (const log of receipt.logs) {
   const parsed = token.interface.parseLog(log);
@@ -73,44 +68,20 @@ for (const log of receipt.logs) {
 }
 ```
 
-**Step 4: Get Question & Answer**
+**Step 4: Answer**
 ```javascript
 const [question, options] = await token.getQuestion(sessionId);
-
-// Find correct answer (0-3)
-let answer = 0;
-if (question.includes("Concentrated")) answer = 1;
-else if (question.includes("PoS")) answer = 1;
-else if (question.includes("Borrow -> Use -> Repay")) answer = 0;
-else if (question.includes("Miner Extractable Value")) answer = 1;
-else if (question.includes("$5,000")) answer = 0;
-else if (question.includes("1.0")) answer = 0;
-else if (question.includes("18")) answer = 0;
-else if (question.includes("20%")) answer = 1;
-else if (question.includes("0.75")) answer = 3;
-else if (question.includes("16")) answer = 0;
-else if (question.includes("3628800")) answer = 0;
-else if (question.includes("64")) answer = 0;
-
+// Find correct answer from 32 questions
 await token.answerQuestion(sessionId, answer);
 ```
 
 **Step 5: Verify**
 ```javascript
 const balance = await token.balanceOf(wallet.address);
-// Receive: 950 AIFINAL (5% fee to treasury)
+// Receive: 950 AIFINAL
 ```
 
-### Check Cooldowns
-```javascript
-// Check all cooldowns
-const [walletCd, ipCd, secretCd] = await token.getCooldowns(wallet.address, ipHash, secret);
-console.log("Wallet cooldown:", walletCd, "seconds");
-console.log("IP cooldown:", ipCd, "seconds");
-console.log("Secret cooldown:", secretCd, "seconds");
-```
-
-## Questions (12 Total)
+## Questions Database (32 Total)
 
 **DeFi (6):**
 1. Uniswap V3 → Concentrated Liquidity (1)
@@ -120,13 +91,12 @@ console.log("Secret cooldown:", secretCd, "seconds");
 5. ETH Price → $5,000 (0)
 6. Aave Liquidation → 1.0 (0)
 
-**Math (6):**
-7. 2 + 4 * 4 → 18 (0)
-8. 10/50 → 20% (1)
-9. 3/4 → 0.75 (3)
-10. 2x=32 → 16 (0)
-11. 10! → 3628800 (0)
-12. 8² → 64 (0)
+**Math (26):**
+- Squares (7, 10, 12, 15, 25)
+- Powers (2^10, 5^6)
+- Square roots (256, 625, 289, 2500)
+- Cubes (10^3, 11^3, 17^3)
+- Basic operations (+, -, *, /)
 
 ## Fee
 - **Mint**: 5% to treasury
@@ -135,42 +105,34 @@ console.log("Secret cooldown:", secretCd, "seconds");
 
 ## Security
 - **Triple 6-Hour Cooldown**: IP + Wallet + Secret
-- **Independent Tracking**: Each can be used after 6 hours
-- **Owner Controls**: Only owner can pause/unpause, set treasury
-- **Reentrancy Protection**: Safe transfer pattern
-- **No Backdoors**: Only owner has admin privileges
+- **32 Random Questions**: Much harder for humans
+- **Owner Controls**: Only owner can pause/unpause
+- **Reentrancy Protection**: Safe transfer
 
-## Example (Complete)
+## Example
 ```javascript
 const { ethers } = require("hardhat");
 
 async function molt42069Mint() {
-  const PRIVATE_KEY = "your_private_key";
+  const PRIVATE_KEY = "your_key";
   const wallet = new ethers.Wallet(PRIVATE_KEY);
   const signer = wallet.connect(ethers.provider);
 
-  const CONTRACT = "0x1D9C8F13305EEa654f5E56766bC7F1E41F1Ce989";
+  const CONTRACT = "0x778F37d736470b8e4a185FfA8A2EF206b079bb23";
   const Token = await ethers.getContractFactory("AIOnlyTokenFinal_V4Pro");
   const token = Token.attach(CONTRACT);
 
-  // Step 0: Generate IP hash and secret
-  const ip = "YOUR_IP_ADDRESS";
+  const ip = "YOUR_IP";
   const nonce = Date.now().toString();
   const ipHash = ethers.keccak256(ethers.toUtf8Bytes(ip + nonce));
   const secret = ethers.id("MY_AI_" + Date.now());
 
-  // Check cooldowns first
-  const [wCd, iCd, sCd] = await token.getCooldowns(wallet.address, ipHash, secret);
-  console.log("Cooldowns - Wallet:", wCd, "IP:", iCd, "Secret:", sCd);
-
-  // Step 1: Register IP
+  // Register
   await token.connect(signer).registerIP(ipHash);
-
-  // Step 2: Register
   await token.connect(signer).register(secret, ipHash);
   await new Promise(r => setTimeout(r, 2000));
 
-  // Step 3: Request Mint
+  // Request Mint
   const mintTx = await token.connect(signer).requestMint();
   const receipt = await mintTx.wait();
 
@@ -185,26 +147,11 @@ async function molt42069Mint() {
     } catch {}
   }
 
-  // Step 4: Answer
+  // Answer
   const [question, options] = await token.connect(signer).getQuestion(sessionId);
-  
-  let answer = 0;
-  if (question.includes("Concentrated")) answer = 1;
-  else if (question.includes("PoS")) answer = 1;
-  else if (question.includes("Borrow -> Use -> Repay")) answer = 0;
-  else if (question.includes("Miner Extractable Value")) answer = 1;
-  else if (question.includes("$5,000")) answer = 0;
-  else if (question.includes("1.0")) answer = 0;
-  else if (question.includes("18")) answer = 0;
-  else if (question.includes("20%")) answer = 1;
-  else if (question.includes("0.75")) answer = 3;
-  else if (question.includes("16")) answer = 0;
-  else if (question.includes("3628800")) answer = 0;
-  else if (question.includes("64")) answer = 0;
-
+  // Find correct answer from 32 questions...
   await token.connect(signer).answerQuestion(sessionId, answer);
 
-  // Step 5: Verify
   const balance = await token.balanceOf(wallet.address);
   console.log("Minted:", ethers.formatEther(balance), "AIFINAL");
 }
